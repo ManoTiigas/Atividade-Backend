@@ -1,144 +1,70 @@
-# TaskFlow — CRUD Mobile com React Native + Expo + Node.js
+# taskflow-api
 
-Aplicação completa de gerenciamento de tarefas com:
-- **Backend**: Node.js + Express + SQLite nativo (Node 22+)
-- **Mobile**: React Native + Expo + TypeScript + React Navigation
+Backend da aplicação TaskFlow. API REST com Express + Firestore.
 
----
+## Stack
 
-## Estrutura do Projeto
+- Node.js (18+)
+- Express
+- Firebase Admin SDK (Firestore)
 
-```
-taskflow/
-├── backend/          # API REST
-│   └── src/
-│       ├── modules/tasks/
-│       │   ├── controllers/   # HTTP handlers (thin)
-│       │   ├── services/      # Regras de negócio
-│       │   ├── repositories/  # Acesso ao banco
-│       │   ├── dtos/          # Validação de input
-│       │   └── routes/        # Definição de rotas
-│       ├── shared/
-│       │   ├── errors/        # AppError tipado
-│       │   └── middlewares/   # errorHandler global
-│       ├── infra/database/    # Conexão SQLite
-│       ├── app.js             # Express app
-│       └── server.js          # Entry point + graceful shutdown
-│
-└── mobile/           # App Expo
-    └── src/
-        ├── screens/           # TaskListScreen, TaskFormScreen
-        ├── components/        # TaskCard, StatusBadge
-        ├── services/          # taskApi (fetch wrapper)
-        ├── hooks/             # useTasks (data fetching)
-        ├── types/             # Task, DTOs, navegação
-        └── theme/             # Tokens de design
-```
+## Como rodar
 
----
+### 1. Criar projeto no Firebase
 
-## Como Rodar
+1. Acesse [console.firebase.google.com](https://console.firebase.google.com)
+2. Crie um projeto
+3. Vá em **Project Settings → Service Accounts → Generate new private key**
+4. Baixe o JSON gerado
 
-### Pré-requisitos
-- Node.js **22+** (necessário para `node:sqlite` nativo)
-- npm ou yarn
-- Expo Go instalado no celular (ou emulador)
-
----
-
-### 1. Backend
+### 2. Configurar variáveis de ambiente
 
 ```bash
-cd backend
-
-# Instalar dependências
-npm install
-
-# Copiar variáveis de ambiente
 cp .env.example .env
-
-# Iniciar em desenvolvimento
-npm run dev
-
-# Produção
-npm start
 ```
 
-Servidor disponível em `http://localhost:3333`.
+Abra o `.env` e preencha com os dados do JSON baixado:
 
----
+```env
+PORT=3333
+FIREBASE_PROJECT_ID=seu-projeto-id
+FIREBASE_CLIENT_EMAIL=firebase-adminsdk-xxxxx@seu-projeto.iam.gserviceaccount.com
+FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+```
 
-### 2. Mobile
+> **Atenção:** a `FIREBASE_PRIVATE_KEY` deve estar entre aspas duplas e com `\n` literal (não quebra de linha real).
+
+### 3. Instalar e rodar
 
 ```bash
-cd mobile
-
 npm install
-
-npx expo start
+npm run dev     # desenvolvimento (--watch)
+npm start       # produção
 ```
 
-Escaneie o QR code com o **Expo Go** (Android/iOS).
+API disponível em `http://localhost:3333`.
 
----
+## Endpoints
 
-### Configurar IP da API no Mobile
+| Método   | Rota         | Descrição           |
+|----------|--------------|---------------------|
+| GET      | /tasks       | Listar tarefas      |
+| GET      | /tasks/:id   | Buscar por ID       |
+| POST     | /tasks       | Criar tarefa        |
+| PATCH    | /tasks/:id   | Atualizar (parcial) |
+| DELETE   | /tasks/:id   | Excluir             |
 
-Edite `mobile/src/services/api.ts` e altere `BASE_URL`:
+### Corpo esperado — POST /tasks
 
-| Ambiente               | URL                              |
-|------------------------|----------------------------------|
-| Android Emulator       | `http://10.0.2.2:3333/api/v1`    |
-| Dispositivo físico     | `http://<SEU_IP_LOCAL>:3333/api/v1` |
-| iOS Simulator          | `http://localhost:3333/api/v1`   |
-
-Para descobrir seu IP local: `ipconfig` (Windows) ou `ifconfig` / `ip addr` (Linux/Mac).
-
----
-
-## API Endpoints
-
-| Método   | Rota                     | Descrição               |
-|----------|--------------------------|-------------------------|
-| `GET`    | `/api/v1/tasks`          | Listar tarefas          |
-| `GET`    | `/api/v1/tasks/stats`    | Contagem por status     |
-| `GET`    | `/api/v1/tasks/:id`      | Buscar por ID           |
-| `POST`   | `/api/v1/tasks`          | Criar tarefa            |
-| `PATCH`  | `/api/v1/tasks/:id`      | Atualizar (parcial)     |
-| `DELETE` | `/api/v1/tasks/:id`      | Excluir tarefa          |
-
-### Exemplo — Criar tarefa
-
-```bash
-curl -X POST http://localhost:3333/api/v1/tasks \
-  -H "Content-Type: application/json" \
-  -d '{
-    "title": "Implementar autenticação JWT",
-    "description": "Login com refresh token",
-    "priority": "high",
-    "status": "pending"
-  }'
+```json
+{
+  "title": "Minha tarefa",
+  "description": "Opcional",
+  "priority": "high",
+  "status": "pending"
+}
 ```
 
-### Campos da tarefa
-
-| Campo         | Tipo     | Valores aceitos                     | Obrigatório |
-|---------------|----------|--------------------------------------|-------------|
-| `title`       | string   | máx. 120 chars                       | ✅           |
-| `description` | string   | máx. 500 chars                       | ❌           |
-| `priority`    | string   | `low`, `medium`, `high`              | ❌ (default: `medium`) |
-| `status`      | string   | `pending`, `in_progress`, `done`     | ❌ (default: `pending`) |
-| `due_date`    | string   | ISO 8601 (ex: `2026-12-31`)          | ❌           |
-
----
-
-## Padrões Arquiteturais Aplicados
-
-- **Repository Pattern** — acesso ao banco isolado da lógica de negócio
-- **DTO + Validação na borda** — validação antes de chegar ao service
-- **AppError tipado** — erros de domínio com `statusCode` e `code`
-- **Error Handler centralizado** — único ponto de formatação de erros
-- **Graceful Shutdown** — fecha conexões pendentes em `SIGTERM`/`SIGINT`
-- **Custom Hook `useTasks`** — encapsula data-fetching, sem lógica inline nos componentes
-- **Tokens de design centralizados** — `theme/index.ts` como fonte única de verdade
-- **Navegação tipada** — `RootStackParamList` com TypeScript
+Valores aceitos:
+- `priority`: `low` | `medium` | `high`
+- `status`: `pending` | `in_progress` | `done`
