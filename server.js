@@ -91,3 +91,5 @@ app.delete('/tasks/:id', async (req, res) => {
 // ── Start ──────────────────────────────────────────────
 const PORT = process.env.PORT ?? 3333;
 app.listen(PORT, () => console.log(`API rodando em http://localhost:${PORT}`));
+
+module.exports = app;
